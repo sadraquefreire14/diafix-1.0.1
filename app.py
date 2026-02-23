@@ -99,7 +99,7 @@ if check_password():
     st.sidebar.button("Sair", on_click=lambda: st.session_state.clear())
     
     # --- ABAS ---
-    aba1, aba2 = st.tabs(["📊 Nova Operação", "🔍 Histórico Permanente"])
+    aba1, aba2, aba3 = st.tabs(["📊 Nova Operação", "🔍 Histórico Permanente","📊 Painel de Controle Estratégico"])
 
     with aba1:
         st.title("Calculadora de Antecipação")
@@ -188,5 +188,59 @@ if check_password():
             else:
                 st.info("Planilha vazia.")
         except:
-
             st.error("Erro ao carregar dados.")
+    with aba3:
+        st.subheader("📊 Painel de Controle Estratégico")
+        
+        # 1. Carregar os dados da nuvem
+        url_planilha = "https://docs.google.com/spreadsheets/d/15XPXTSPsNG0jNAA8Mc854E55wng03F8p6r7DamCwedk/edit?usp=sharing"
+        df_historico = conn.read(spreadsheet=url_planilha, worksheet="Página1")
+        
+        if not df_historico.empty:
+            # Garantir que a coluna de Data está no formato correto para o Python
+            df_historico['Data Operação'] = pd.to_datetime(df_historico['Data Operação'], dayfirst=True)
+            
+            # Criar uma coluna auxiliar para o filtro de Mês/Ano (ex: 02/2026)
+            df_historico['Mes_Ano'] = df_historico['Data Operação'].dt.strftime('%m/%Y')
+            
+            # 2. Criar o Filtro no topo do Dashboard
+            st.write("### 📅 Filtros")
+            lista_meses = ["Todos"] + sorted(df_historico['Mes_Ano'].unique().tolist(), reverse=True)
+            mes_selecionado = st.selectbox("Selecione o período para análise:", lista_meses)
+            
+            # Aplicar o filtro aos dados
+            if mes_selecionado != "Todos":
+                df_filtrado = df_historico[df_historico['Mes_Ano'] == mes_selecionado]
+            else:
+                df_filtrado = df_historico
+
+            # 3. Métricas Dinâmicas (mudam conforme o filtro)
+            t_bruto = df_filtrado["Total Bruto"].sum()
+            t_juros = df_filtrado["Total Juros"].sum()
+            t_liq = df_filtrado["Total Líquido"].sum()
+            qtd = len(df_filtrado)
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Operações", f"{qtd}")
+            c2.metric("Total Bruto", f"R$ {t_bruto:,.2f}")
+            c3.metric("Lucro Real", f"R$ {t_juros:,.2f}", delta=f"{mes_selecionado}")
+            c4.metric("Total Líquido", f"R$ {t_liq:,.2f}")
+
+            st.divider()
+
+            # 4. Gráficos Comparativos
+            col_g1, col_g2 = st.columns(2)
+            
+            with col_g1:
+                st.write("**Top Clientes (Volume Bruto)**")
+                faturamento_cliente = df_filtrado.groupby("Cliente")["Total Bruto"].sum().sort_values(ascending=False)
+                st.bar_chart(faturamento_cliente)
+                
+            with col_g2:
+                st.write("**Evolução do Lucro por Mês**")
+                # Aqui usamos o histórico todo para ver a linha do tempo
+                evolucao_lucro = df_historico.groupby("Mes_Ano")["Total Juros"].sum()
+                st.line_chart(evolucao_lucro)
+                
+        else:
+            st.info("Aguardando o primeiro salvamento na nuvem para gerar o painel.") #streamlit run app.py
