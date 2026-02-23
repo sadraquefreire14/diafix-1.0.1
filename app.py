@@ -14,7 +14,7 @@ URL_PLANILHA = "https://docs.google.com/spreadsheets/d/15XPXTSPsNG0jNAA8Mc854E55
 # --- SISTEMA DE LOGIN ---
 def check_password():
     if "password_correct" not in st.session_state:
-        st.title("🔐 Acesso Restrito - DataCalc")
+        st.title("🔐 Acesso Restrito - DiaTax")
         senha = st.text_input("Digite a senha de acesso", type="password")
         if st.button("Entrar"):
             if senha == "1234": # <--- SUA SENHA
@@ -188,4 +188,5 @@ if check_password():
             else:
                 st.info("Planilha vazia.")
         except:
+
             st.error("Erro ao carregar dados.")
